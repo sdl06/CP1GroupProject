@@ -1,5 +1,8 @@
 #include <stdio.h>
 #include <time.h>
+#include <stdlib.h>
+#include <string.h>
+#include <pthread.h>
 
 typedef struct {
     char name[50];
@@ -7,6 +10,7 @@ typedef struct {
 } subject_t;
 
 typedef struct {
+    int student_id;
     char name[50];
     char studentid[15];
     int grade;
@@ -25,6 +29,36 @@ void calculate_average(student_t *student) {
     student->average_grade = (student->subject1.grade + student->subject2.grade +
                               student->subject3.grade + student->subject4.grade) / 4.0f;
 }
+
+int load_student_data(const char *path) {
+    FILE *file = fopen(path, "r");
+    if (file == NULL) {
+        printf("Error opening file.\n");
+        return 1;
+    }
+
+    int id = 1;
+    if (fscanf(file, "%d", &id) != 1) {
+        id = 1;
+    }
+    fclose(file);
+    return id;
+}
+
+void update_next_id(const char *path, int new_id) {
+    FILE *file = fopen("next_id.tmp", "w");
+    if (!file) {
+        printf("Error opening file for writing.\n");
+        return;
+    }
+    fprintf(file, "%d\n", new_id);
+    fclose(file);
+
+    remove(path);
+    rename("next_id.tmp", path);
+}
+
+
 
 void add_student() {
     // Function to add a new student
@@ -90,6 +124,10 @@ void add_student() {
     fclose(file);
 }
 
+void edit_student() {
+    // Function to edit an existing student
+
+}
 int main() {
 
     char status;
