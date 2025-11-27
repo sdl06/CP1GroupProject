@@ -126,6 +126,17 @@ void add_student() {
 
 void edit_student() {
     // Function to edit an existing student
+        int student_id;
+        printf("What student ID do you want to edit?\n");
+        scanf(student_id);
+        char filename[100];
+        snprintf(filename, sizeof(filename), "output_%d.txt", student_id);
+        FILE* original;
+        original = fopen(filename, "r");
+        if (!original) {
+            printf("no file found, please create it");
+            return -1;
+        }
 
 }
 int main() {
@@ -146,6 +157,8 @@ int main() {
     }
 
     if (status == 'e') {
+
+
 
     }
 
