@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <unistd.h>
 
 typedef struct {
     char name[50];
@@ -63,13 +64,19 @@ void update_next_id(const char *path, int new_id) {
 void add_student() {
     // Function to add a new student
     student_t student;
-    printf("Enter student name: \n");
-    scanf("%s", &student.name);
-    printf("Enter date of birth (DD/MM/YYYY): \n");
-    scanf("%s", &student.dateofbirth);
+    FILE *id_counter = fopen("data/next_id.txt", "r");
+    if (!id_counter) {
+        printf("Error opening ID counter file.\n");
+        return -1;
+    }
+    fscanf(id_counter, "%d", &student.student_id);
+    update_next_id("data/next_id.txt", student.student_id + 1);
+    fclose(id_counter);
+
 
     char filename[256];
-    snprintf(filename, sizeof(filename), "%s_%s.txt", student.name, student.dateofbirth);
+    snprintf(filename, sizeof(filename), "%s.txt", student.student_id);
+    
     FILE *file = fopen(filename, "a");
 
     if (file == NULL) {
@@ -77,7 +84,11 @@ void add_student() {
         return 1;
     }
 
+    printf("Enter student name: \n");
+    scanf("%s", &student.name);
     fprintf(file, "Name: %s\n", student.name);
+    printf("Enter date of birth (DD/MM/YYYY): \n");
+    scanf("%s", &student.dateofbirth);
     fprintf(file, "Date of Birth: %s\n", student.dateofbirth);
     printf("Enter student ID: \n");
     scanf("%s", &student.studentid);
@@ -126,17 +137,50 @@ void add_student() {
 
 void edit_student() {
     // Function to edit an existing student
-        int student_id;
-        printf("What student ID do you want to edit?\n");
-        scanf(student_id);
-        char filename[100];
-        snprintf(filename, sizeof(filename), "output_%d.txt", student_id);
-        FILE* original;
-        original = fopen(filename, "r");
-        if (!original) {
-            printf("no file found, please create it");
-            return -1;
-        }
+    int search_student_id;
+    printf("What student ID do you want to edit?\n");
+    if (scanf(&search_student_id) != 1) {
+        printf("Invalid input.\n");
+        while (getchar() != '\n'); // clear input buffer
+        return;
+    }
+    char filename[100];
+    snprintf(filename, sizeof(filename), "output_%d.txt", search_student_id);
+
+    if (access(filename, F_OK) != 0) {
+        printf("Student file does not exist.\n");
+        return;
+    }
+
+    /* open and verify content */
+    FILE *f = fopen(filename, "r");
+    if (!f) { perror("fopen"); return; }
+
+    char line[512];
+    char idtok[64];
+    snprintf(idtok, sizeof(idtok), "%d", search_student_id);
+    int found = 0;
+    while (fgets(line, sizeof(line), f)) {
+        if (strstr(line, "Student ID:") && strstr(line, idtok)) { found = 1; break; }
+    }
+    fclose(f);
+    
+    FILE* original;
+    original = fopen(filename, "r");
+    if (!original) {
+        printf("no file found, please create it");
+        return;
+    }
+
+    FILE* temp;
+    temp = fopen("temp.txt", "w");
+    if (!temp) {
+        printf("Error creating temporary file.\n");
+        fclose(original);
+        return;
+    }
+
+
 
 }
 int main() {
@@ -157,6 +201,7 @@ int main() {
     }
 
     if (status == 'e') {
+        edit_student();
 
 
 
