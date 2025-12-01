@@ -136,40 +136,4 @@ TEST(AddStudent, CreatesFileFromSimulatedStdin) {
     std::remove(inpath.c_str());
     std::remove(outname.c_str());
 }
-#include <gtest/gtest.h>
-#include <fstream>
-#include <string>
-#include <cstdio>
-
-extern "C" {
-    int load_student_data(const char *path);
-}
-
-static std::string write_temp(const std::string &name, const std::string &content) {
-    std::string path = std::string("/tmp/") + name;
-    std::ofstream ofs(path.c_str());
-    ofs << content;
-    ofs.close();
-    return path;
-}
-
-TEST(LoadStudentData, NonexistentFileReturns1) {
-    // Choose a filename that is unlikely to exist
-    const char *path = "/tmp/nonexistent_file_hopefully_unique_12345.tmp";
-    // If the file truly doesn't exist, load_student_data should return 1
-    EXPECT_EQ(1, load_student_data(path));
-}
-
-TEST(LoadStudentData, ValidNumberFileReturnsThatNumber) {
-    std::string path = write_temp("next_id_valid_test.txt", "42\n");
-    EXPECT_EQ(42, load_student_data(path.c_str()));
-    std::remove(path.c_str());
-}
-
-TEST(LoadStudentData, InvalidContentReturns1) {
-    std::string path = write_temp("next_id_invalid_test.txt", "abc\n");
-    EXPECT_EQ(1, load_student_data(path.c_str()));
-    std::remove(path.c_str());
-}
-
 // optional: main provided by gtest's linker when building the test binary
