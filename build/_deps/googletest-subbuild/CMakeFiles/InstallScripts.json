@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/sergio/cp1gp/CP1GroupProject/build/_deps/googletest-subbuild/cmake_install.cmake"
+	],
+	"Parallel" : false
+}

@@ -1,0 +1,3 @@
+/home/sergio/cp1gp/CP1GroupProject/build/CMakeFiles/app.dir
+/home/sergio/cp1gp/CP1GroupProject/build/CMakeFiles/edit_cache.dir
+/home/sergio/cp1gp/CP1GroupProject/build/CMakeFiles/rebuild_cache.dir

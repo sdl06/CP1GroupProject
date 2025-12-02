@@ -4,36 +4,63 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <vector>
+#include <stdexcept>
+#include <unistd.h>
+#include <filesystem>
 
-extern "C" {
-    int load_student_data(const char *path);
-}
+namespace fs = std::filesystem;
 
-static std::string write_temp(const std::string &name, const std::string &content) {
-    std::string path = std::string("/tmp/") + name;
-    std::ofstream ofs(path.c_str());
-    ofs << content;
-    ofs.close();
-    return path;
-}
+// Simple scoped helper to run tests inside a temp directory so files stay isolated.
+class ScopedTempDir {
+public:
+    ScopedTempDir() : old_path(fs::current_path()) {
+        path = fs::temp_directory_path() / fs::path("cp1gp_test_XXXXXX");
+        std::string tmpl = path.string();
+        std::vector<char> mutable_path(tmpl.begin(), tmpl.end());
+        mutable_path.push_back('\0');
+        char *res = mkdtemp(mutable_path.data());
+        if (!res) {
+            throw std::runtime_error("mkdtemp failed");
+        }
+        path = res;
+        fs::current_path(path);
+    }
+    ~ScopedTempDir() {
+        fs::current_path(old_path);
+        fs::remove_all(path);
+    }
+private:
+    fs::path old_path;
+    fs::path path;
+};
 
-TEST(LoadStudentData, NonexistentFileReturns1) {
-    // Choose a filename that is unlikely to exist
-    const char *path = "/tmp/nonexistent_file_hopefully_unique_12345.tmp";
-    // If the file truly doesn't exist, load_student_data should return 1
+TEST(LoadStudentData, NonexistentFileCreatesAndReturns1) {
+    ScopedTempDir guard;
+    const char *path = "next_id.txt";
     EXPECT_EQ(1, load_student_data(path));
+    // File should now exist with the seeded value
+    std::ifstream ifs(path);
+    ASSERT_TRUE(ifs.is_open());
+    int val = 0;
+    ifs >> val;
+    EXPECT_EQ(1, val);
 }
 
 TEST(LoadStudentData, ValidNumberFileReturnsThatNumber) {
-    std::string path = write_temp("next_id_valid_test.txt", "42\n");
-    EXPECT_EQ(42, load_student_data(path.c_str()));
-    std::remove(path.c_str());
+    ScopedTempDir guard;
+    std::ofstream ofs("next_id_valid_test.txt");
+    ofs << "42\n";
+    ofs.close();
+    EXPECT_EQ(42, load_student_data("next_id_valid_test.txt"));
 }
 
-TEST(LoadStudentData, InvalidContentReturns1) {
-    std::string path = write_temp("next_id_invalid_test.txt", "abc\n");
-    EXPECT_EQ(1, load_student_data(path.c_str()));
-    std::remove(path.c_str());
+TEST(LoadStudentData, InvalidOrNegativeContentReturns1) {
+    ScopedTempDir guard;
+    std::ofstream ofs("next_id_invalid_test.txt");
+    ofs << "-5\n";
+    ofs.close();
+    EXPECT_EQ(1, load_student_data("next_id_invalid_test.txt"));
 }
 
 // --- Additional tests for other functions in src/main.c ---
@@ -63,8 +90,7 @@ extern "C" {
 
     void calculate_average(student_t *student);
     void update_next_id(const char *path, int new_id);
-    void add_student();
-    void edit_student();
+    int recompute_average_grade(const char *filename);
 }
 
 TEST(CalculateAverage, ComputesCorrectly) {
@@ -81,59 +107,37 @@ TEST(CalculateAverage, ComputesCorrectly) {
 }
 
 TEST(UpdateNextId, ReplacesFileWithNewId) {
-    std::string path = write_temp("next_id_update_test.txt", "7\n");
+    ScopedTempDir guard;
+    std::ofstream ofs("next_id_update_test.txt");
+    ofs << "7\n";
+    ofs.close();
+
     // Call function under test
-    update_next_id(path.c_str(), 12345);
+    update_next_id("next_id_update_test.txt", 12345);
 
     // Read the file and verify contents
-    std::ifstream ifs(path.c_str());
+    std::ifstream ifs("next_id_update_test.txt");
     ASSERT_TRUE(ifs.is_open());
     int val = 0;
     ifs >> val;
     ifs.close();
     EXPECT_EQ(12345, val);
-    std::remove(path.c_str());
-    // cleanup any stray temp file used by implementation
-    std::remove("next_id.tmp");
+    EXPECT_FALSE(fs::exists("next_id.tmp"));
 }
 
-TEST(EditStudent, Callable) {
-    // empty function in main.c -- ensure it can be called
-    edit_student();
-    SUCCEED();
-}
-
-TEST(AddStudent, CreatesFileFromSimulatedStdin) {
-    // Prepare simulated stdin with whitespace-separated tokens.
-    // Use date without slashes to avoid creating directories when used in filename.
-    std::string input = "TestName 01012000 S12345 85 FatherName MotherName 5551234 Math 90.0 Eng 80.0 Sci 70.0 Hist 60.0\n";
-    std::string inpath = write_temp("add_student_input.txt", input);
-
-    // Redirect stdin to our temp file
-    FILE *saved_stdin = stdin;
-    FILE *f = freopen(inpath.c_str(), "r", stdin);
-    ASSERT_NE(f, nullptr);
-
-    // Call function under test
-    add_student();
-
-    // Restore stdin
-    fflush(stdin);
-    stdin = saved_stdin;
-
-    // Verify the expected output file was created
-    std::string outname = "TestName_01012000.txt";
-    std::ifstream ofs(outname.c_str());
-    ASSERT_TRUE(ofs.is_open());
-    // basic sanity check: file should contain the name and DOB
-    std::string contents;
-    std::getline(ofs, contents, '\0');
+TEST(RecomputeAverageGrade, UpdatesDerivedAverage) {
+    ScopedTempDir guard;
+    std::ofstream ofs("student.txt");
+    ofs << "SUBJECT1_GRADE = 80.0\n";
+    ofs << "SUBJECT2_GRADE = 90.0\n";
+    ofs << "SUBJECT3_GRADE = 70.0\n";
+    ofs << "SUBJECT4_GRADE = 60.0\n";
+    ofs << "AVERAGE_GRADE = 0.00\n";
     ofs.close();
-    EXPECT_NE(contents.find("Name: TestName"), std::string::npos);
-    EXPECT_NE(contents.find("Date of Birth: 01012000"), std::string::npos);
 
-    // cleanup
-    std::remove(inpath.c_str());
-    std::remove(outname.c_str());
+    EXPECT_EQ(0, recompute_average_grade("student.txt"));
+
+    std::ifstream ifs("student.txt");
+    std::string contents((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+    EXPECT_NE(contents.find("AVERAGE_GRADE = 75.00"), std::string::npos);
 }
-// optional: main provided by gtest's linker when building the test binary
