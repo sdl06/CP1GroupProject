@@ -1,0 +1,8 @@
+[
+{
+  "directory": "/home/sergio/cp1gp/CP1GroupProject/build",
+  "command": "/mnt/c/msys64/ucrt64/bin/gcc.exe -g -std=gnu11 -o CMakeFiles/app.dir/src/main.c.o -c /home/sergio/cp1gp/CP1GroupProject/src/main.c",
+  "file": "/home/sergio/cp1gp/CP1GroupProject/src/main.c",
+  "output": "/home/sergio/cp1gp/CP1GroupProject/build/CMakeFiles/app.dir/src/main.c.o"
+}
+]
